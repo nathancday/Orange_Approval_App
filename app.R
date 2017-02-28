@@ -8,8 +8,8 @@ library(shiny)
 library(shinythemes)
 library(ggplot2)
 
-theme_set(theme_classic(base_size = 18) +
-              theme(panel.border = element_rect(colour = "grey90", fill=NA, size=1),
+theme_set(ggplot2::theme_classic(base_size = 18) +
+              ggplot2::theme(panel.border = element_rect(colour = "grey90", fill=NA, size=1),
                     plot.background = element_rect(fill = "#4e5d6c"),
                     strip.background = element_rect(linetype = "blank", fill = "#3e444c"),
                     text = element_text(color = "white", size = rel(.75)),
@@ -22,14 +22,14 @@ theme_set(theme_classic(base_size = 18) +
                     legend.position = "none")
 )
 
-setwd("~/future/President_Approval/Pres_Approval_App/")
+# setwd("~/future/President_Approval/Pres_Approval_App/")
 #### UI ####
 ui <- fluidPage(theme = shinytheme("superhero"),
                 titlePanel(title = "Red, White and Boo",
                            tags$head(tags$link(rel = "shortcut icon", href = "www/favicon.png"))
                            ),
                 fluidRow(column(12,
-                         p("A loess look at the 🍊's historically low approval ratings with Shiny..."))
+                         p("A loess look comparing the 🍊's historic approval poll to past Presidents"))
                          ),
                 fluidRow(column(12,
                                 sidebarLayout(sidebarPanel(width = 3,
@@ -48,10 +48,11 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                     br(),
                                     checkboxInput("more_bool", "Show more filters"),
                                     conditionalPanel(condition = "input.more_bool == true",
-                                        h5("Background Filters:"),
-                                        selectInput("term_select", "Select # of terms", c(1,2)),
-                                        checkboxInput("party_bool", "Filter by party:"),
-                                        selectInput("party_select", "Party:", c("Republican", "Democrat"))
+                                        h5("Still working on this, sorry : (")
+                                        
+                                        # selectInput("term_select", "Select # of terms", c(1,2)),
+                                        # checkboxInput("party_bool", "Filter by party:"),
+                                        # selectInput("party_select", "Party:", c("Republican", "Democrat"))
                                     )
                                 ),
                                 mainPanel(width = 9,
@@ -140,9 +141,6 @@ server <- function(input, output) {
         data %<>% filter(as.Date(end_date) > input$term_int[1],
                          as.Date(end_date) < input$term_int[2])
         
-        if(input$party_bool) {
-            data %<>% filter(party == input$party_select)
-        }
         return(data)
      })
     
@@ -159,22 +157,19 @@ server <- function(input, output) {
         proj %<>% filter(as.Date(end_date) > input$term_int[1],
                          as.Date(end_date) < input$term_int[2])
         
-        if(input$party_bool) {
-            proj %<>% filter(party == input$party_select)
-        }
         return(proj)
     })
     
     output$main_approval_plot <- renderPlotly({
-        p <- ggplot(in_data(), aes(x = days_in_office, y = approval, color = party)) +
+        p <- ggplot(in_data(), aes(x = days_in_office, y = approval, color = party, text = end_date)) +
             stat_smooth(se = F, size = 3, n = max(trump$days_in_office)) +
             stat_smooth(data = in_trump(), size = 3, se = F) +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            theme(legend.position = "none") +
+            ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Approval Rating")
         
-        ggplotly(p,originalData = T, tooltip = c("approval", "party"), layer = 1)
+        ggplotly(p, originalData = T, tooltip = c("approval", "party"))
     })
     
     output$second_approval_plot <- renderPlotly({
@@ -183,7 +178,7 @@ server <- function(input, output) {
             stat_smooth(se = F, aes(linetype = line_type)) +
             stat_smooth(data = in_trump(), se = F, size = 1, color = "orange") +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            theme(legend.position = "none") +
+            ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Approval Rating")
         
@@ -195,7 +190,7 @@ server <- function(input, output) {
             stat_smooth(se = F, size = 3) +
             stat_smooth(data = in_trump(), size = 3, se = F) +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            theme(legend.position = "none") +
+            ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Disapproval Rating")
         ggplotly(p,originalData = T, tooltip = c("disapproval", "party"), layer = 1)
@@ -206,7 +201,7 @@ server <- function(input, output) {
             stat_smooth(se = F, aes(linetype = line_type)) +
             stat_smooth(data = in_trump(), se = F, size = 1, color = "orange") +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            theme(legend.position = "none") +
+            ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Disapproval Rating")
         ggplotly(p,originalData = T, tooltip = c("disapproval", "president", "party"), layer = 1)
@@ -217,7 +212,7 @@ server <- function(input, output) {
             stat_smooth(se = F, size = 3) +
             stat_smooth(data = in_trump(), size = 3, se = F) +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            theme(legend.position = "none") +
+            ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Unsure Rating")
         ggplotly(p,originalData = T, tooltip = c("unsure", "party"), layer = 1)
@@ -228,7 +223,7 @@ server <- function(input, output) {
             stat_smooth(se = F, aes(linetype = line_type)) +
             stat_smooth(data = in_trump(), se = F, size = 1, color = "orange") +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            theme(legend.position = "none") +
+            ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Unsure Rating")
         ggplotly(p,originalData = T, tooltip = c("unsure", "president", "party"), layer = 1)
