@@ -24,18 +24,24 @@ theme_set(ggplot2::theme_classic(base_size = 18) +
 
 # setwd("~/future/President_Approval/Pres_Approval_App/")
 #### UI ####
+
 ui <- fluidPage(theme = shinytheme("superhero"),
+                #### UI-Title ####
                 titlePanel(title = "Red, White and Boo",
                            tags$head(tags$link(rel = "shortcut icon", href = "www/favicon.png"))
                            ),
                 fluidRow(column(12,
-                         p("A loess look comparing the 🍊's historic approval poll to past Presidents"))
+                         p("A loess look at the 🍊's historic poll ratings ratings against the back drop of history."),
+                         p("Updated : 2017-03-14")
+                         )
                          ),
+                #### UI-Main ####
                 fluidRow(column(12,
+                                #### UI-Controls ####
                                 sidebarLayout(sidebarPanel(width = 3,
                                     h4("Time Scale:"),
                                     checkboxInput("don_bool", "Focus on first 100 days?", T),
-                                    checkboxInput("don_predict", "Plot projections for 🍊's first 100 days?", F),
+                                    checkboxInput("don_predict", "Plot an linear model for 🍊's first 100 days?", F),
                                     conditionalPanel(condition = "input.don_bool == false",
                                         sliderInput("time_int", "Select Days in Office:", 100, 2922, value = 1461)
                                         ),
@@ -55,29 +61,48 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                         # selectInput("party_select", "Party:", c("Republican", "Democrat"))
                                     )
                                 ),
+                                #### UI-Output ####
                                 mainPanel(width = 9,
                                     tabsetPanel(id = "main_tabs",
                                         tabPanel("", icon = icon("thumbs-up"), value = "approve",
+                                                 tags$h3("% Approval:"),
+                                                 fluidRow(
+                                                     column(9,
+                                                            tags$body(p("Compared to historical party averages"))
+                                                     )
+                                                 ),
                                                  plotlyOutput("main_approval_plot", height = "400px"),
                                                  br(),
                                                  fluidRow(
                                                      column(9,
-                                                           tags$body(p("A second plot by Individual Presidents"))
+                                                           tags$body(p("Compared to indiviual presidents"))
                                                            )
                                                      ),
                                                  plotlyOutput("second_approval_plot", height = "400px")
                                                  ),
                                         tabPanel("",icon = icon("thumbs-down"), value = "disapprove",
+                                                 tags$h3("% Disapproval:"),
+                                                 fluidRow(
+                                                     column(9,
+                                                            tags$body(p("Compared to historical party averages"))
+                                                     )
+                                                 ),
                                                  plotlyOutput("main_disapproval_plot", height = "400px"),
                                                  br(),
                                                  fluidRow(
                                                      column(9,
-                                                            tags$body(p("A second plot by Individual Presidents"))
+                                                            tags$body(p("Compared to indiviual presidents"))
                                                      )
                                                  ),
                                                  plotlyOutput("second_disapproval_plot", height = "400px")
                                                  ),
                                         tabPanel("", icon = icon("question"), value = "unsure",
+                                                 tags$h3("% Unsure:"),
+                                                 fluidRow(
+                                                     column(9,
+                                                            tags$body(p("Compared to historical party averages"))
+                                                     )
+                                                 ),
                                                  plotlyOutput("main_unsure_plot", height = "400px"),
                                                  br(),
                                                  fluidRow(
@@ -93,6 +118,7 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                 )
                 ),
                 br(),
+                #### UI-Footer ####
                 fluidRow(column(12,
                         tabsetPanel(
                             tabPanel("Data", icon = icon("folder-open"),
@@ -106,12 +132,34 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                               )
                                               ),
                             tabPanel("Code", icon = icon("github"),
-                                     p("Coming soon...")
+                                     tags$div(class = "info",
+                                              tags$h4("Code"),
+                                              tags$p("All of the code written to generate this Shiny app, including a bunch that doesn't show up in the rendered verion here
+                                                     is available and easier to see on",
+                                                     tags$a(href = "https://github.com/NathanCDay/Orange_Approval_App", "my Github repo"), "."),
+                                              tags$p("I built this app as an execise in web development with",
+                                                     tags$a(href = "https://github.com/rstudio/htmltools",
+                                                            tags$code("library(htmltools)")), ", webscrapping with",
+                                                     tags$a(href = "https://www.r-bloggers.com/rvest-easy-web-scraping-with-r/",
+                                                            tags$code("library(rvest)") ),
+                                                     ", and interactive graphics with",
+                                                     tags$a(href = "https://plot.ly/r/",
+                                                            tags$code("library(plotly)")), "."),
+                                              tags$p("Currently this app is manually run to scrape new polling data, but my next step is to build a cron job to auto scrape fresh data weekly. 
+                                                     I also want to build one more selector input to allow specifc president comparisons by name, that is what should appear when
+                                                     the Show More Tools checkbox is toggled on."))
                                      )
                             )
                             )
                                      
-                )
+                ),
+                br(),
+                fluidRow(column(12,
+                                tags$div(class = "well well-sm",
+                                         "This project was coded by Nate Day 2017"
+                                )
+                                         )
+                         )
                 )
 
 #### Server ####
@@ -161,7 +209,7 @@ server <- function(input, output) {
     })
     
     output$main_approval_plot <- renderPlotly({
-        p <- ggplot(in_data(), aes(x = days_in_office, y = approval, color = party, text = end_date)) +
+        p <- ggplot(in_data(), aes(x = days_in_office, y = approval, color = party)) +
             stat_smooth(se = F, size = 3, n = max(trump$days_in_office)) +
             stat_smooth(data = in_trump(), size = 3, se = F) +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
@@ -169,7 +217,9 @@ server <- function(input, output) {
             labs(x = "Days in Office",
                  y = "Approval Rating")
         
-        ggplotly(p, originalData = T, tooltip = c("approval", "party"))
+        
+        
+        ggplotly(p, originalData = F, tooltip = c("all"))
     })
     
     output$second_approval_plot <- renderPlotly({

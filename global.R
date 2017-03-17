@@ -36,7 +36,10 @@ metaFiller <- function(vector) {
 results_list <- list()
 for (i in 32:45) {
     url <- paste0("http://www.presidency.ucsb.edu/data/popularity.php?pres=", i, "&sort=time&direct=DESC&Submit=DISPLAY")
-    result <- url %>% read_html %>% html_nodes("table") %>% extract2(11) %>% html_table(fill = T)
+    result <- url %>% read_html() %>% 
+        html_nodes("table") %>% 
+        extract2(11) %>% 
+        html_table(fill = T)
     results_list[[i]] <- result
 }
 
