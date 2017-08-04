@@ -7,6 +7,7 @@ library(magrittr)
 library(shiny)
 library(shinythemes)
 library(ggplot2)
+library(mgcv)
 
 theme_set(ggplot2::theme_classic(base_size = 18) +
               ggplot2::theme(panel.border = element_rect(colour = "grey90", fill=NA, size=1),
@@ -71,7 +72,7 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                                             tags$body(p("Compared to historical party averages"))
                                                      )
                                                  ),
-                                                 plotlyOutput("main_approval_plot", height = "400px"),
+                                                 plotlyOutput("main_approval_plot", height = "800px"),
                                                  br(),
                                                  fluidRow(
                                                      column(9,
@@ -216,8 +217,6 @@ server <- function(input, output) {
             ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Approval Rating")
-        
-        
         
         ggplotly(p, originalData = F, tooltip = c("all"))
     })

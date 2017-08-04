@@ -141,7 +141,7 @@ projected <- full_join(response_data, start_date) %>%
     mutate(end_date = start_date + days(days_in_office),
            year = strftime(end_date, "%Y"),
            start_date = lag(end_date)) %>%
-    mutate_at(vars(3:5), funs(round(., 2)))
+    mutate_if(is.numeric, funs(round(., 2)))
 
 saveRDS(projected, "www/proj.RDS")
 
@@ -170,75 +170,75 @@ start_date2 <- filter(added, president == "Donald J. Trump") %>%
 projected_trump <- full_join(response_trump, start_date2) %>%
     mutate(end_date = start_date + days(days_in_office),
            year = strftime(end_date, "%Y"),
-           start_date = lag(end_date)) %>%
-    mutate_at(vars(3:5), funs(round(., 2)))
+           start_date = lag(end_date)) %>% 
+    mutate_if(is.numeric, funs(round(., 2)))
 
 saveRDS(projected_trump, "www/projected_trump.RDS")
 
 
 #### GGTern ####
-ggplot(data = projected_trump, aes(x = approval, y = disapproval, z = unsure)) +
-    geom_text(aes(label = days_in_office)) +
-    coord_tern() +
-    theme_bw() +
-    theme_showarrows()
-    
-ggplotly()
-
-
-# from help page
-label <- function(txt) {
-    list(
-        text = txt, 
-        x = 0.1, y = 1,
-        ax = 0, ay = 0,
-        xref = "paper", yref = "paper", 
-        align = "center",
-        font = list(family = "serif", size = 15, color = "white"),
-        bgcolor = "#b3b3b3", bordercolor = "black", borderwidth = 2
-    )
-}
-
-# reusable function for axis formatting
-axis <- function(txt) {
-    list(
-        title = txt, tickformat = ".0%", tickfont = list(size = 10)
-    )
-}
-
-ternaryAxes <- list(
-    aaxis = axis("Approval"), 
-    baxis = axis("Disapproval"), 
-    caxis = axis("Unsure")
-)
-
-plot_ly(projected,
-        a = ~approval, b = ~disapproval, c = ~unsure, color = ~party,
-        hoverinfo = "text",
-        text = ~paste(president,
-                      "</br>+:", approval,
-                      "</br>-", disapproval,
-                      "</br>?", unsure,
-                      "</br>", party),
-        colors = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"),
-        type = "scatterternary", mode = "markers",
-        marker = list(symbol = "circle", size = 10)) %>%
-    layout(
-        ternary = ternaryAxes, xaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F, reversescale = F),
-        yaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F)
-    )
-
-plot_ly(projected_trump,
-        a = ~approval, b = ~disapproval, c = ~100 -unsure, color = ~party,
-        hoverinfo = "text",
-        text = ~paste(president,
-                      "</br>+:", approval,
-                      "</br>-", disapproval,
-                      "</br>?", unsure,
-                      "</br>", party),
-        colors = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"),
-        type = "scatterternary", mode = "markers") %>%
-    layout(
-        ternary = ternaryAxes, xaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F),
-        yaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F)
-    )
+# ggplot(data = projected_trump, aes(x = approval, y = disapproval, z = unsure)) +
+#     geom_text(aes(label = days_in_office)) +
+#     coord_tern() +
+#     theme_bw() +
+#     theme_showarrows()
+#     
+# ggplotly()
+# 
+# 
+# # from help page
+# label <- function(txt) {
+#     list(
+#         text = txt, 
+#         x = 0.1, y = 1,
+#         ax = 0, ay = 0,
+#         xref = "paper", yref = "paper", 
+#         align = "center",
+#         font = list(family = "serif", size = 15, color = "white"),
+#         bgcolor = "#b3b3b3", bordercolor = "black", borderwidth = 2
+#     )
+# }
+# 
+# # reusable function for axis formatting
+# axis <- function(txt) {
+#     list(
+#         title = txt, tickformat = ".0%", tickfont = list(size = 10)
+#     )
+# }
+# 
+# ternaryAxes <- list(
+#     aaxis = axis("Approval"), 
+#     baxis = axis("Disapproval"), 
+#     caxis = axis("Unsure")
+# )
+# 
+# plot_ly(projected,
+#         a = ~approval, b = ~disapproval, c = ~unsure, color = ~party,
+#         hoverinfo = "text",
+#         text = ~paste(president,
+#                       "</br>+:", approval,
+#                       "</br>-", disapproval,
+#                       "</br>?", unsure,
+#                       "</br>", party),
+#         colors = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"),
+#         type = "scatterternary", mode = "markers",
+#         marker = list(symbol = "circle", size = 10)) %>%
+#     layout(
+#         ternary = ternaryAxes, xaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F, reversescale = F),
+#         yaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F)
+#     )
+# 
+# plot_ly(projected_trump,
+#         a = ~approval, b = ~disapproval, c = ~100 -unsure, color = ~party,
+#         hoverinfo = "text",
+#         text = ~paste(president,
+#                       "</br>+:", approval,
+#                       "</br>-", disapproval,
+#                       "</br>?", unsure,
+#                       "</br>", party),
+#         colors = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"),
+#         type = "scatterternary", mode = "markers") %>%
+#     layout(
+#         ternary = ternaryAxes, xaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F),
+#         yaxis = list(title = "", showgrid = F, zeroline = F, showticklabels = F)
+#     )
