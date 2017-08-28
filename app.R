@@ -41,11 +41,8 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                 #### UI-Controls ####
                                 sidebarLayout(sidebarPanel(width = 3,
                                     h4("Time Scale:"),
-                                    checkboxInput("don_bool", "Focus on first 100 days?", T),
-                                    checkboxInput("don_predict", "Plot an linear model for 🍊's first 100 days?", F),
-                                    conditionalPanel(condition = "input.don_bool == false",
-                                        sliderInput("time_int", "Select Days in Office:", 100, 2922, value = 1461)
-                                        ),
+                                    sliderInput("time_int", "Days in Office:", 100, 2922, value = 365),
+                                    checkboxInput("don_predict", "Plot an linear model for 🍊's future? ", F),
                                     br(),
                                     h4("Presidents Included:"),
                                     sliderInput("term_int", "Years of Service", as.Date("1940-01-01"), as.Date("2017-12-31"),
@@ -165,13 +162,18 @@ ui <- fluidPage(theme = shinytheme("superhero"),
 
 #### Server ####
 server <- function(input, output) {
+    
     data <- readRDS("www/data.RDS")
-    trump_proj <- readRDS("www/projected_trump.RDS")
+    
+    # trump_proj <- readRDS("www/projected_trump.RDS")
+    
     trump <- filter(data, president == "Donald J. Trump")
     data %<>% filter(president != "Donald J. Trump")
     
     in_trump <- reactive({
         if(input$don_predict) {
+            trump_mods <- 
+            
             return(trump_proj)
         }
         else {
@@ -180,10 +182,6 @@ server <- function(input, output) {
     })
     
     in_data <- reactive({
-        # Don time axis react
-        if(input$don_bool) {
-            data <- filter(data, days_in_office <= 100)
-            }
         
         data %<>% filter(days_in_office <= input$time_int)
         

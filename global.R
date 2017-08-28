@@ -8,7 +8,8 @@ library(magrittr)
 
 setwd("~/future/President_Approval/Pres_Approval_App/")
 
-metaFiller <- function(vector) {
+# useful function for filling tables
+na_filler <- function(vector) {
     for (i in 1:length(vector)) {
         if (!is.na(vector[i])) {
             j <- vector[i]
@@ -20,54 +21,62 @@ metaFiller <- function(vector) {
     return(vector)
 }
 
+#### Scraper -------------------------------------------------------------------
+# let's get our hands dirty
 
-#### Parser ####
-
-# # works for a single webpage
-# site <- read_html("http://www.presidency.ucsb.edu/data/popularity.php")
-# pres_approval <- site %>% html_nodes("table") %>% extract2(11) %>%
-#     html_table(fill = T)
-# 
-# site2 <- read_html("http://www.presidency.ucsb.edu/data/popularity.php?pres=32&sort=time&direct=DESC&Submit=DISPLAY")
-# fdr_approval <- site2 %>% html_nodes("table") %>% extract2(11) %>%
-#     html_table(fill = T)
-
-# id'd presidential number in url, want to loop on that
-results_list <- list()
-for (i in 32:45) {
-    url <- paste0("http://www.presidency.ucsb.edu/data/popularity.php?pres=", i, "&sort=time&direct=DESC&Submit=DISPLAY")
-    result <- url %>% read_html() %>% 
+# id is presidential # in url, want to loop on that
+ucsb_scraper <- function(id) {
+    
+    result <- paste0("http://www.presidency.ucsb.edu/data/popularity.php?pres=",
+                     id,
+                     "&sort=time&direct=DESC&Submit=DISPLAY") %>%
+        read_html() %>% 
         html_nodes("table") %>% 
         extract2(11) %>% 
         html_table(fill = T)
-    results_list[[i]] <- result
+
 }
 
-# # results grabbed 2017/2/18
-saveRDS(results_list, "www/results.RDS")
+# # get historical data once for Roosevelt - Obama
+# past_presidents <- map(32:44, ucsb_scraper)
+# # save my scraper traffic
+# saveRDS(past_presidents, "www/past_presidents.RDS")
+past_presidents <- readRDS("www/past_presidents.RDS")
 
-#### Scrubber ####
-results_list <- readRDS("www/results.RDS")
+# get current data for the orange
+current_president <- map(45, ucsb_scraper)
+# combine into one
+results_list <- c(past_presidents, current_president)
 
-parsed <- results_list[32:45] %>% map(~ select(., 1:3,5:7)) %>%
+#### Scrubber ------------------------------------------------------------------
+# clean up the wild and unruly data from the scrap
+
+# tidy up
+parsed <- results_list %>%
+    map(~ select(., 1:3,5:7)) %>%
     map(~ magrittr::extract(., -c(1:6), )) %>%
-    map(~ set_colnames(., c("president", "start_date", "end_date", "approval", "disapproval", "unsure"))) %>%
-    bind_rows()
+    map_dfr(~ set_colnames(., c("president", "start_date", "end_date",
+                            "approval", "disapproval", "unsure")))
 
-parsed$president %<>% ifelse(nchar(.) < 2, NA, .) %>% metaFiller()
+# handle subsequent empty rows in president var with na_filler()
+parsed$president %<>% ifelse(nchar(.) < 2, NA, .) %>%
+    na_filler() %>%
+    fct_inorder()
+    
+# recode date vars and numeric vars from chr
+parsed %<>% mutate_at(vars(contains("date")), mdy) %>%
+    mutate_if(is.character, as.numeric)
 
-cleaned <- parsed %>% mutate_at(vars(contains("date")), "mdy") %>%
-    mutate_at(vars(4:6), "as.numeric") %>%
-    mutate(president = as.factor(president) %>% fct_inorder)
-
-# natural time course
-ggplot(cleaned, aes(end_date, approval, color = president)) +
-    geom_path()
+# viz check
+ggplot(parsed, aes(end_date, approval, color = president)) +
+    geom_point()
 
 
-#### Adder ####
+#### Adder --------------------------------------------------------------------
+# build in useful display features
+
 # add a scaled time variable for days in office
-added <- cleaned %>% group_by(president) %>%
+added <- parsed %>% group_by(president) %>%
     mutate(days_in_office = end_date - min(end_date))
 
 # add party variable manually
@@ -145,6 +154,8 @@ projected <- full_join(response_data, start_date) %>%
 
 saveRDS(projected, "www/proj.RDS")
 
+
+
 trump_mods <- filter(test, president == "Donald J. Trump") %>%
     split(.$pres_mes) %>%
     map(~ lm(value ~ as.numeric(days_in_office), data = .))
@@ -174,6 +185,32 @@ projected_trump <- full_join(response_trump, start_date2) %>%
     mutate_if(is.numeric, funs(round(., 2)))
 
 saveRDS(projected_trump, "www/projected_trump.RDS")
+
+
+### rework preds
+data <- readRDS("www/data.RDS") %>%
+    filter(president == "Donald J. Trump")
+
+mods <- data %>%
+    gather(key, value, approval:unsure) %>%
+    split(.$key) %>%
+    map(~ lm(value ~ days_in_office, data = .))
+
+new_data <- tibble(days_in_office = seq(max(gathered$days_in_office), 500))
+
+new_data <- map_df(mods, ~ predict(., newdata = new_data)) %>%
+    mutate_all(round,1) %>%
+    bind_cols(new_data)
+
+
+# re-attach to data
+data2 <- bind_rows(new_data, data)
+# need to fill in NAs
+
+
+
+
+
 
 
 #### GGTern ####
