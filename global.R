@@ -128,6 +128,26 @@ ggplot(added, aes(end_date, approval, color = party)) +
 # shiny app storage
 saveRDS(added, "www/data.RDS")
 
+#### Trump Pred Models -------------------------------------------------
+# mods
+djt <- filter(added, number == 45)
+
+mods <- djt %>%
+    gather("rating", "value", approval:unsure) %>%
+    split(.$rating) %>%
+    map(~ lm(value ~ end_date, data = .))
+
+new_d <- tibble(end_date = max(djt$end_date) + seq(1,720, 9))
+
+preds <- map(mods, ~ predict(., new_d)) %>%
+    map(~ mutate(new_d, value = .)) %>%
+    map2_dfr(., names(.), ~ mutate(.x, rating = .y)) %>%
+    spread(rating, value)
+
+djt %<>% bind_rows(preds)
+
+
+
 
 
 # #### Play ####
