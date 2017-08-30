@@ -8,8 +8,28 @@ library(shiny)
 library(shinythemes)
 library(ggplot2)
 library(mgcv)
-library(assayr)
 
+
+fillNAs <- function (vector, reverse = F) 
+{
+    if (reverse) {
+        seq <- length(vector):1
+    }
+    if (!reverse) {
+        seq <- 1:length(vector)
+    }
+    for (i in seq) {
+        if (!is.na(vector[i])) {
+            j <- vector[i]
+        }
+        if (is.na(vector[i])) {
+            vector[i] <- j
+        }
+    }
+    return(vector)
+}
+
+>>>>>>> final changes for new theme push live
 theme_set(ggplot2::theme_bw(base_size = 18) +
               ggplot2::theme(panel.border = element_rect(colour = "#f5f5f5", fill=NA, size=1),
                     plot.background = element_rect(fill = "#f5f5f5"),
@@ -171,6 +191,7 @@ in_data <- reactive({
             map(~ mutate(new_d, value = .)) %>%
             map2_dfr(., names(.), ~ mutate(.x, rating = .y)) %>%
             spread(rating, value)
+<<<<<<< HEAD
         
         djt %<>% bind_rows(preds,.) %>%
             map_df(~ fillNAs(., T))
@@ -179,6 +200,16 @@ in_data <- reactive({
             bind_rows(djt, .)
         
         
+=======
+        
+        djt %<>% bind_rows(preds,.) %>%
+            map_df(~ fillNAs(., T))
+        
+        data %<>% filter(number != 45) %>%
+            bind_rows(djt, .)
+        
+        
+>>>>>>> final changes for new theme push live
         }
     
     return(data)
