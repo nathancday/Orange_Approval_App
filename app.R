@@ -41,7 +41,7 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                 #### UI-Controls ####
                                 sidebarLayout(sidebarPanel(width = 3,
                                     h4("Time Scale:"),
-                                    sliderInput("time_int", "Days in Office:", 100, 2922, value = 365),
+                                    sliderInput("time_int", "Days in Office:", 0, 2922, value = 365),
                                     checkboxInput("don_predict", "Plot an linear model for 🍊's future? ", F),
                                     br(),
                                     h4("Presidents Included:"),
@@ -69,16 +69,10 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                                             tags$body(p("Compared to historical party averages"))
                                                      )
                                                  ),
-                                                 plotlyOutput("main_approval_plot", height = "800px"),
-                                                 br(),
-                                                 fluidRow(
-                                                     column(9,
-                                                           tags$body(p("Compared to indiviual presidents"))
-                                                           )
-                                                     ),
-                                                 plotlyOutput("second_approval_plot", height = "400px")
-                                                 ),
-                                        tabPanel("",icon = icon("thumbs-down"), value = "disapprove",
+                                                 plotlyOutput("main_approval_plot", height = "400px"),
+                                                 br()
+                                        ),
+                                        tabPanel("", icon = icon("thumbs-up"), value = "approve",
                                                  tags$h3("% Disapproval:"),
                                                  fluidRow(
                                                      column(9,
@@ -86,29 +80,16 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                                      )
                                                  ),
                                                  plotlyOutput("main_disapproval_plot", height = "400px"),
-                                                 br(),
-                                                 fluidRow(
-                                                     column(9,
-                                                            tags$body(p("Compared to indiviual presidents"))
-                                                     )
-                                                 ),
-                                                 plotlyOutput("second_disapproval_plot", height = "400px")
-                                                 ),
-                                        tabPanel("", icon = icon("question"), value = "unsure",
-                                                 tags$h3("% Unsure:"),
+                                                 br()
+                                        ),
+                                        tabPanel("", icon = icon("thumbs-up"), value = "approve",
+                                                 tags$h3("% Approval:"),
                                                  fluidRow(
                                                      column(9,
                                                             tags$body(p("Compared to historical party averages"))
                                                      )
                                                  ),
-                                                 plotlyOutput("main_unsure_plot", height = "400px"),
-                                                 br(),
-                                                 fluidRow(
-                                                     column(9,
-                                                            tags$body(p("A second plot by Individual Presidents"))
-                                                     )
-                                                 ),
-                                                 plotlyOutput("second_unsure_plot", height = "400px")
+                                                 plotlyOutput("main_unsure_plot", height = "400px")
                                                  )
                                 )
                                 )
@@ -208,29 +189,14 @@ server <- function(input, output) {
     })
     
     output$main_approval_plot <- renderPlotly({
-        p <- ggplot(in_data(), aes(x = days_in_office, y = approval, color = party)) +
-            stat_smooth(se = F, size = 3, n = max(trump$days_in_office)) +
-            stat_smooth(data = in_trump(), size = 3, se = F) +
-            scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            ggplot2::theme(legend.position = "none") +
-            labs(x = "Days in Office",
-                 y = "Approval Rating")
-        
-        ggplotly(p, originalData = F, tooltip = c("all"))
+        # ggplot(mtcars, aes(mpg, cyl)) + geom_point()
+        p <- ggplot(data, aes(end_date, approval, color = party, group = initials)) +
+            geom_point(alpha = .5) +
+            geom_path(alpha = .25) +
+            scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"))
+        ggplotly(p)
     })
-    
-    output$second_approval_plot <- renderPlotly({
-        
-        p <- ggplot(in_proj(), aes(x = days_in_office, y = approval, group = president, color = party)) +
-            stat_smooth(se = F, aes(linetype = line_type)) +
-            stat_smooth(data = in_trump(), se = F, size = 1, color = "orange") +
-            scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            ggplot2::theme(legend.position = "none") +
-            labs(x = "Days in Office",
-                 y = "Approval Rating")
-        
-        ggplotly(p,originalData = T, tooltip = c("approval", "president", "party"), layer = 1)
-    })
+
     
     output$main_disapproval_plot <- renderPlotly({
         p <- ggplot(in_data(), aes(x = days_in_office, y = disapproval, color = party)) +
@@ -242,18 +208,7 @@ server <- function(input, output) {
                  y = "Disapproval Rating")
         ggplotly(p,originalData = T, tooltip = c("disapproval", "party"), layer = 1)
     })
-    
-    output$second_disapproval_plot <- renderPlotly({
-        p <- ggplot(in_proj(), aes(x = days_in_office, y = disapproval, group = president, color = party)) +
-            stat_smooth(se = F, aes(linetype = line_type)) +
-            stat_smooth(data = in_trump(), se = F, size = 1, color = "orange") +
-            scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            ggplot2::theme(legend.position = "none") +
-            labs(x = "Days in Office",
-                 y = "Disapproval Rating")
-        ggplotly(p,originalData = T, tooltip = c("disapproval", "president", "party"), layer = 1)
-    })
-    
+
     output$main_unsure_plot <- renderPlotly({
         p <- ggplot(in_data(), aes(x = days_in_office, y = unsure, color = party)) +
             stat_smooth(se = F, size = 3) +
@@ -264,17 +219,7 @@ server <- function(input, output) {
                  y = "Unsure Rating")
         ggplotly(p,originalData = T, tooltip = c("unsure", "party"), layer = 1)
     })
-    
-    output$second_unsure_plot <- renderPlotly({
-        p <- ggplot(in_proj(), aes(x = days_in_office, y = unsure, group = president, color = party)) +
-            stat_smooth(se = F, aes(linetype = line_type)) +
-            stat_smooth(data = in_trump(), se = F, size = 1, color = "orange") +
-            scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-            ggplot2::theme(legend.position = "none") +
-            labs(x = "Days in Office",
-                 y = "Unsure Rating")
-        ggplotly(p,originalData = T, tooltip = c("unsure", "president", "party"), layer = 1)
-    })
+
 }
 
 shinyApp(ui = ui, server = server)
