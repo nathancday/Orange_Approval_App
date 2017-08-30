@@ -41,13 +41,13 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                 #### UI-Controls ####
                                 sidebarLayout(sidebarPanel(width = 3,
                                     h4("Time Scale:"),
-                                    sliderInput("time_int", "Days in Office:", 0, 2922, value = 365),
+                                    sliderInput("term_int", "Years of Service", as.Date("1940-01-01"), as.Date("2017-12-31"),
+                                                c(as.Date("1940-01-01"), as.Date("2017-12-31")),
+                                                timeFormat = "%Y"),
                                     checkboxInput("don_predict", "Plot an linear model for 🍊's future? ", F),
                                     br(),
                                     h4("Presidents Included:"),
-                                    sliderInput("term_int", "Years of Service", as.Date("1940-01-01"), as.Date("2017-12-31"),
-                                                                                       c(as.Date("1940-01-01"), as.Date("2017-12-31")),
-                                                                                       timeFormat = "%Y"),
+                                    
                                         
                                     br(),
                                     checkboxInput("more_bool", "Show more filters"),
@@ -72,7 +72,7 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                                  plotlyOutput("main_approval_plot", height = "400px"),
                                                  br()
                                         ),
-                                        tabPanel("", icon = icon("thumbs-up"), value = "approve",
+                                        tabPanel("", icon = icon("thumbs-down"), value = "approve",
                                                  tags$h3("% Disapproval:"),
                                                  fluidRow(
                                                      column(9,
@@ -82,7 +82,7 @@ ui <- fluidPage(theme = shinytheme("superhero"),
                                                  plotlyOutput("main_disapproval_plot", height = "400px"),
                                                  br()
                                         ),
-                                        tabPanel("", icon = icon("thumbs-up"), value = "approve",
+                                        tabPanel("", icon = icon("question"), value = "approve",
                                                  tags$h3("% Approval:"),
                                                  fluidRow(
                                                      column(9,
@@ -148,26 +148,51 @@ server <- function(input, output) {
     
     # trump_proj <- readRDS("www/projected_trump.RDS")
     
-    trump <- filter(data, president == "Donald J. Trump")
-    data %<>% filter(president != "Donald J. Trump")
-    
-    in_trump <- reactive({
-        if(input$don_predict) {
-            trump_mods <- 
-            
-            return(trump_proj)
-        }
-        else {
-            return(trump)
-        }
-    })
+    # trump <- filter(data, president == "Donald J. Trump")
+    # data %<>% filter(president != "Donald J. Trump")
+    # 
+    # in_trump <- reactive({
+    #     if(input$don_predict) {
+    #         trump_mods <- 
+    #         
+    #         return(trump_proj)
+    #     }
+    #     else {
+    #         return(trump)
+    #     }
+    # })
     
     in_data <- reactive({
         
-        data %<>% filter(days_in_office <= input$time_int)
+        data %<>% filter(number != 45) %>%
+            filter(as.Date(end_date) > input$term_int[1],
+                   as.Date(end_date) < input$term_int[2]) %>%
+            bind_rows(filter(data, number == 45))
         
-        data %<>% filter(as.Date(end_date) > input$term_int[1],
-                         as.Date(end_date) < input$term_int[2])
+        if (input$don_predict) {
+            
+            djt <- filter(added, number == 45)
+            
+            mods <- djt %>%
+                gather("rating", "value", approval:unsure) %>%
+                split(.$rating) %>%
+                map(~ lm(value ~ end_date, data = .))
+            
+            new_d <- tibble(end_date = max(djt$end_date) + seq(1,720, 9))
+            
+            preds <- map(mods, ~ predict(., new_d)) %>%
+                map(~ mutate(new_d, value = .)) %>%
+                map2_dfr(., names(.), ~ mutate(.x, rating = .y)) %>%
+                spread(rating, value)
+            
+            djt %<>% bind_rows(preds,.) %>%
+                map_df(~ fillNAs(., T))
+            
+            data %<>% filter(number != 45) %>%
+                bind_rows(djt, .)
+            
+            
+            }
         
         return(data)
      })
@@ -190,34 +215,37 @@ server <- function(input, output) {
     
     output$main_approval_plot <- renderPlotly({
         # ggplot(mtcars, aes(mpg, cyl)) + geom_point()
-        p <- ggplot(data, aes(end_date, approval, color = party, group = initials)) +
+        p <- ggplot(in_data(), aes(end_date, approval, color = party, group = initials)) +
             geom_point(alpha = .5) +
-            geom_path(alpha = .25) +
+            scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+            theme(axis.text.x = element_text(angle = 45)) +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"))
-        ggplotly(p)
+        ggplotly(p, originalData = T, tooltip = c("approval", "initials"), layer = 1)
     })
 
     
     output$main_disapproval_plot <- renderPlotly({
-        p <- ggplot(in_data(), aes(x = days_in_office, y = disapproval, color = party)) +
-            stat_smooth(se = F, size = 3) +
-            stat_smooth(data = in_trump(), size = 3, se = F) +
+        p <- ggplot(in_data(), aes(end_date, disapproval, color = party, group = initials)) +
+            geom_point(alpha = .5) +
+            scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+            theme(axis.text.x = element_text(angle = 45)) +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
             ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Disapproval Rating")
-        ggplotly(p,originalData = T, tooltip = c("disapproval", "party"), layer = 1)
+        ggplotly(p,originalData = T, tooltip = c("disapproval", "initials"), layer = 1)
     })
 
     output$main_unsure_plot <- renderPlotly({
-        p <- ggplot(in_data(), aes(x = days_in_office, y = unsure, color = party)) +
-            stat_smooth(se = F, size = 3) +
-            stat_smooth(data = in_trump(), size = 3, se = F) +
+        p <- ggplot(in_data(), aes(end_date, unsure, color = party, group = initials)) +
+            geom_point(alpha = .5) +
+            scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+            theme(axis.text.x = element_text(angle = 45)) +
             scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
             ggplot2::theme(legend.position = "none") +
             labs(x = "Days in Office",
                  y = "Unsure Rating")
-        ggplotly(p,originalData = T, tooltip = c("unsure", "party"), layer = 1)
+        ggplotly(p,originalData = T, tooltip = c("unsure", "initials"), layer = 1)
     })
 
 }
