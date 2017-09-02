@@ -10,8 +10,7 @@ library(ggplot2)
 library(mgcv)
 
 
-fillNAs <- function (vector, reverse = F) 
-{
+fillNAs <- function (vector, reverse = F) {
     if (reverse) {
         seq <- length(vector):1
     }
@@ -29,7 +28,6 @@ fillNAs <- function (vector, reverse = F)
     return(vector)
 }
 
->>>>>>> final changes for new theme push live
 theme_set(ggplot2::theme_bw(base_size = 18) +
               ggplot2::theme(panel.border = element_rect(colour = "#f5f5f5", fill=NA, size=1),
                     plot.background = element_rect(fill = "#f5f5f5"),
@@ -167,6 +165,7 @@ fluidRow(column(12,
 #### Server ####
 server <- function(input, output) {
 
+## * data ----
 data <- readRDS("www/data.RDS")
 
 in_data <- reactive({
@@ -178,7 +177,7 @@ in_data <- reactive({
     
     if (input$don_predict) {
         
-        djt <- filter(added, number == 45)
+        djt <- filter(data, number == 45)
         
         mods <- djt %>%
             gather("rating", "value", approval:unsure) %>%
@@ -191,45 +190,16 @@ in_data <- reactive({
             map(~ mutate(new_d, value = .)) %>%
             map2_dfr(., names(.), ~ mutate(.x, rating = .y)) %>%
             spread(rating, value)
-<<<<<<< HEAD
         
         djt %<>% bind_rows(preds,.) %>%
             map_df(~ fillNAs(., T))
         
         data %<>% filter(number != 45) %>%
             bind_rows(djt, .)
-        
-        
-=======
-        
-        djt %<>% bind_rows(preds,.) %>%
-            map_df(~ fillNAs(., T))
-        
-        data %<>% filter(number != 45) %>%
-            bind_rows(djt, .)
-        
-        
->>>>>>> final changes for new theme push live
         }
     
     return(data)
  })
-
-proj <- readRDS("www/proj.RDS")
-proj %<>% filter(president != "Donald J. Trump")
-in_proj <- reactive({
-    # Don time axis react
-    if(input$don_bool) {
-        proj <- filter(proj, days_in_office <= 100)
-    }
-    
-    proj %<>% filter(days_in_office <= input$time_int)
-    
-    proj %<>% filter(as.Date(end_date) > input$term_int[1],
-                     as.Date(end_date) < input$term_int[2])
-    
-    return(proj)
-})
 
 output$main_approval_plot <- renderPlotly({
     # ggplot(mtcars, aes(mpg, cyl)) + geom_point()
