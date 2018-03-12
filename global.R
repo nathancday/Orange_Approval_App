@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 # Scraper for http://www.presidency.ucsb.edu/data/popularity.php
 library(forcats)
 library(rvest)
@@ -7,6 +9,8 @@ library(tidyverse)
 library(magrittr)
 
 setwd("~/future/President_Approval/Pres_Approval_App/")
+
+saveRDS(Sys.time(), "www/update_time.RDS")
 
 # useful function for filling tables
 na_filler <- function(vector) {
@@ -46,6 +50,14 @@ past_presidents <- readRDS("www/past_presidents.RDS")
 
 # get current data for the orange
 current_president <- map(45, ucsb_scraper)
+
+parsed <- current_president %>%
+    map(~ select(., 1:3,5:7)) %>%
+    map(~ magrittr::extract(., -c(1:6), )) %>%
+    map_dfr(~ set_colnames(., c("president", "start_date", "end_date",
+                                "approval", "disapproval", "unsure")), .id = "number")
+
+
 # combine into one
 results_list <- c(past_presidents, current_president) %>%
     set_names(32:45)
@@ -79,7 +91,7 @@ ggplot(parsed, aes(end_date, approval, color = initials)) +
     geom_point(alpha = .5)
 # whoa there modern polling frequency
 
-# see how over plotted BO and DJT are
+# see how over plotted BO is ( recordinga too frequent )
 parsed %>%
     group_by(initials) %>%
     summarise(count = n(),
@@ -89,11 +101,11 @@ parsed %>%
     geom_col() +
     labs(title = "BO and DJT need to be adjusted to one every 9.1 days")
 
-parsed %<>% filter(number %in% 44:45) %>%
+parsed %<>% filter(number %in% 44) %>%
     split(.$initials) %>%
-    map_df(~ .[c(rep(F,8), T),]) %>%
+    map_df(~ .[c(rep(F,8), T),]) %>% # cut down to one every week
     filter(!is.na(initials)) %>%
-    bind_rows(filter(parsed, !(number %in% 44:45)))
+    bind_rows(filter(parsed, !(number %in% 44)))
 
 ggplot(parsed, aes(end_date, approval, color = initials)) +
     geom_point(alpha = .5)
