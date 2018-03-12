@@ -29,7 +29,7 @@ fillNAs <- function (vector, reverse = F) {
 }
 
 theme_set(ggplot2::theme_bw(base_size = 18) +
-              ggplot2::theme(panel.border = element_rect(colour = "#f5f5f5", fill=NA, size=1),
+              ggplot2::theme(panel.border = element_blank(),
                     plot.background = element_rect(fill = "#f5f5f5"),
                     text = element_text(color = "white", size = rel(.75)),
                     plot.margin = margin(1,1,1,1, "cm"),
@@ -46,24 +46,25 @@ theme_set(ggplot2::theme_bw(base_size = 18) +
 #### UI ####
 
 ui <- fluidPage(theme = shinytheme("cerulean"),
-#### UI-Title ####
+#### * Title ####
 titlePanel(title = "Red, White and Boo",
            tags$head(tags$link(rel = "shortcut icon", href = "www/favicon.png"))
            ),
 fluidRow(column(12,
          p("A loess look at the 🍊's historic poll ratings ratings against the back drop of history."),
-         p("Updated : 2017-08-29")
+         textOutput("update_time")
          )
          ),
-#### UI-Main ####
 fluidRow(column(12,
-                #### UI-Controls ####
+                #### * Controls ####
                 sidebarLayout(sidebarPanel(width = 3,
                     h4("Time Scale:"),
-                    sliderInput("term_int", "Years of Service", as.Date("1940-01-01"), as.Date("2017-12-31"),
-                                c(as.Date("1940-01-01"), as.Date("2017-12-31")),
+                    sliderInput("term_int", "Years of Service", as.Date("1940-01-01"), as.Date("2018-12-31"),
+                                c(as.Date("1940-01-01"), as.Date("2018-12-31")),
                                 timeFormat = "%Y"),
                     checkboxInput("don_predict", "Plot an linear model for 🍊's future? ", F),
+                    sliderInput("predict_int", "How far into the future?",
+                                30, 1460, 365),
                     br(),
                     h4("Presidents Included:"),
                     
@@ -78,36 +79,21 @@ fluidRow(column(12,
                         # selectInput("party_select", "Party:", c("Republican", "Democrat"))
                     )
                 ),
-                #### UI-Output ####
+                #### * Output ####
                 mainPanel(width = 9,
                     tabsetPanel(id = "main_tabs",
                         tabPanel("", icon = icon("thumbs-up"), value = "approve",
                                  tags$h3("% Approval:"),
-                                 fluidRow(
-                                     column(9,
-                                            tags$body(p("Compared to historical party averages"))
-                                     )
-                                 ),
                                  plotlyOutput("main_approval_plot", height = "400px"),
                                  br()
                         ),
                         tabPanel("", icon = icon("thumbs-down"), value = "approve",
                                  tags$h3("% Disapproval:"),
-                                 fluidRow(
-                                     column(9,
-                                            tags$body(p("Compared to historical party averages"))
-                                     )
-                                 ),
                                  plotlyOutput("main_disapproval_plot", height = "400px"),
                                  br()
                         ),
                         tabPanel("", icon = icon("question"), value = "approve",
                                  tags$h3("% Approval:"),
-                                 fluidRow(
-                                     column(9,
-                                            tags$body(p("Compared to historical party averages"))
-                                     )
-                                 ),
                                  plotlyOutput("main_unsure_plot", height = "400px")
                                  )
                 )
@@ -116,7 +102,7 @@ fluidRow(column(12,
 )
 ),
 br(),
-#### UI-Footer ####
+#### * Footer ####
 fluidRow(column(12,
         tabsetPanel(
             tabPanel("Data", icon = icon("folder-open"),
@@ -155,11 +141,24 @@ fluidRow(column(12,
 ),
 br(),
 fluidRow(column(12,
-                tags$div(class = "well well-sm",
-                         "This project was coded by Nate Day 2017"
+                # tags$p(class = "well well-sm",
+                #        "Built with",
+                #        tags$a(href = "http://rmarkdown.rstudio.com/rmarkdown_websites.html", "Rmd"),
+                #        ". Hosted with",
+                #        tags$a(href = "https://pages.github.com/", "GitHub Pages"),
+                #        "and",
+                #        tags$a(href = "https://cloudflare.com", "Cloudlare"),
+                #        ". Coded by",
+                #        tags$a(href = "https://nate.day.me", "Nate Day"),
+                       HTML('<hr>
+                            <p>
+                            Built with <a href = "https://shiny.rstudio.com/">Shiny</a>.
+                            Hosted via <a href = "https://pages.github.com/">RStudio</a>.
+                            Maintained by <a href = "https://nateday.me">Nate Day</a>.
+                            Copyright &copy; 2017.
+                            </p>')
                 )
             )
-         )
 )
 
 #### Server ####
@@ -201,6 +200,10 @@ in_data <- reactive({
     return(data)
  })
 
+## * update time -----
+output$update_time <- renderText({ paste("Updated: ", readRDS("www/update_time.RDS")) })
+
+## * plots ------
 output$main_approval_plot <- renderPlotly({
     # ggplot(mtcars, aes(mpg, cyl)) + geom_point()
     p <- ggplot(in_data(), aes(end_date, approval, color = party, group = initials)) +
