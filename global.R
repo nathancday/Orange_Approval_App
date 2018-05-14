@@ -12,18 +12,20 @@ setwd("~/future/President_Approval/Pres_Approval_App/")
 
 saveRDS(Sys.time(), "www/update_time.RDS")
 
-# useful function for filling tables
-na_filler <- function(vector) {
-    for (i in 1:length(vector)) {
-        if (!is.na(vector[i])) {
-            j <- vector[i]
-        }
-        if (is.na(vector[i])) {
-            vector[i] <- j
-        }
-    }
-    return(vector)
-}
+# useful function for filling tables/vectors;
+# na_filler <- function(vector) {
+#     for (i in 1:length(vector)) {
+#         if (!is.na(vector[i])) {
+#             j <- vector[i]
+#         }
+#         if (is.na(vector[i])) {
+#             vector[i] <- j
+#         }
+#     }
+#     return(vector)
+# }
+# deprecated for tidyr::fill()
+
 scale_color_discrete <- function(...) ggplot2::scale_color_manual(..., values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"))
 
 #### Scraper -------------------------------------------------------------------
@@ -73,9 +75,9 @@ parsed <- results_list %>%
                             "approval", "disapproval", "unsure")), .id = "number")
 
 # handle subsequent empty rows in president var with na_filler()
-parsed$president %<>% ifelse(nchar(.) < 2, NA, .) %>%
-    na_filler() %>%
-    fct_inorder()
+parsed$president %<>% ifelse(nchar(.) < 2, NA, .)
+parsed %<>% fill(president)
+parsed$president %<>% fct_inorder()
     
 # recode date vars and numeric vars from chr
 parsed %<>% mutate_at(vars(contains("date")), mdy) %>%

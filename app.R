@@ -9,6 +9,8 @@ library(shinythemes)
 library(ggplot2)
 library(mgcv)
 
+library(pacman)
+p_load(plotly, shinythemes, mgcv)
 
 fillNAs <- function (vector, reverse = F) {
     if (reverse) {
@@ -51,7 +53,7 @@ titlePanel(title = "Red, White and Boo",
            tags$head(tags$link(rel = "shortcut icon", href = "www/favicon.png"))
            ),
 fluidRow(column(12,
-         p("A loess look at the 🍊's historic poll ratings ratings against the back drop of history."),
+         h4("A Shiny look at historical poll ratings for US Presidents"),
          textOutput("update_time")
          )
          ),
@@ -82,17 +84,17 @@ fluidRow(column(12,
                 #### * Output ####
                 mainPanel(width = 9,
                     tabsetPanel(id = "main_tabs",
-                        tabPanel("", icon = icon("thumbs-up"), value = "approve",
+                        tabPanel("", icon = icon("thumbs-up"), value = "app",
                                  tags$h3("% Approval:"),
                                  plotlyOutput("main_approval_plot", height = "400px"),
                                  br()
                         ),
-                        tabPanel("", icon = icon("thumbs-down"), value = "approve",
+                        tabPanel("", icon = icon("thumbs-down"), value = "dis",
                                  tags$h3("% Disapproval:"),
                                  plotlyOutput("main_disapproval_plot", height = "400px"),
                                  br()
                         ),
-                        tabPanel("", icon = icon("question"), value = "approve",
+                        tabPanel("", icon = icon("question"), value = "uns",
                                  tags$h3("% Approval:"),
                                  plotlyOutput("main_unsure_plot", height = "400px")
                                  )
@@ -141,15 +143,6 @@ fluidRow(column(12,
 ),
 br(),
 fluidRow(column(12,
-                # tags$p(class = "well well-sm",
-                #        "Built with",
-                #        tags$a(href = "http://rmarkdown.rstudio.com/rmarkdown_websites.html", "Rmd"),
-                #        ". Hosted with",
-                #        tags$a(href = "https://pages.github.com/", "GitHub Pages"),
-                #        "and",
-                #        tags$a(href = "https://cloudflare.com", "Cloudlare"),
-                #        ". Coded by",
-                #        tags$a(href = "https://nate.day.me", "Nate Day"),
                        HTML('<hr>
                             <p>
                             Built with <a href = "https://shiny.rstudio.com/">Shiny</a>.
@@ -169,29 +162,31 @@ data <- readRDS("www/data.RDS")
 
 in_data <- reactive({
     
+    # input slider filter
     data %<>% filter(number != 45) %>%
         filter(as.Date(end_date) > input$term_int[1],
                as.Date(end_date) < input$term_int[2]) %>%
         bind_rows(filter(data, number == 45))
     
-    if (input$don_predict) {
+    if (input$don_predict) { # forecast with lm() %>% predict()
         
         djt <- filter(data, number == 45)
         
-        mods <- djt %>%
-            gather("rating", "value", approval:unsure) %>%
-            split(.$rating) %>%
-            map(~ lm(value ~ end_date, data = .))
-        
+        # for predict()
         new_d <- tibble(end_date = max(djt$end_date) + seq(1,720, 9))
         
-        preds <- map(mods, ~ predict(., new_d)) %>%
-            map(~ mutate(new_d, value = .)) %>%
-            map2_dfr(., names(.), ~ mutate(.x, rating = .y)) %>%
+        mods <- djt %>%
+            gather("rating", "value", approval:unsure) %>%
+            group_by(rating) %>%
+            nest() %>%
+            mutate(mod = map(data, ~ lm(value ~ end_date, data = .)),
+                   pred = map(mod, ~ mutate(new_d, value = predict(., new_d))))
+        
+        preds <- unnest(mods, pred) %>%
             spread(rating, value)
         
         djt %<>% bind_rows(preds,.) %>%
-            map_df(~ fillNAs(., T))
+            fill(everything(), .direction = "up")
         
         data %<>% filter(number != 45) %>%
             bind_rows(djt, .)
@@ -205,29 +200,32 @@ output$update_time <- renderText({ paste("Updated: ", readRDS("www/update_time.R
 
 ## * plots ------
 output$main_approval_plot <- renderPlotly({
-    # ggplot(mtcars, aes(mpg, cyl)) + geom_point()
+    
     p <- ggplot(in_data(), aes(end_date, approval, color = party, group = initials)) +
         geom_point(alpha = .5) +
         scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
         theme(axis.text.x = element_text(angle = 45)) +
         scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange"))
+    
     ggplotly(p, originalData = T, tooltip = c("approval", "initials"), layer = 1)
 })
 
 
 output$main_disapproval_plot <- renderPlotly({
+    
     p <- ggplot(in_data(), aes(end_date, disapproval, color = party, group = initials)) +
         geom_point(alpha = .5) +
         scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
-        theme(axis.text.x = element_text(angle = 45)) +
         scale_color_manual(values = c("Democrat" = "#232066", "Republican" = "#e91d0e", "Orange" = "orange")) +
-        ggplot2::theme(legend.position = "none") +
+        ggplot2::theme(legend.position = "none", axis.text.x = element_text(angle = 45)) +
         labs(x = "Days in Office",
              y = "Disapproval Rating")
+    
     ggplotly(p,originalData = T, tooltip = c("disapproval", "initials"), layer = 1)
 })
 
 output$main_unsure_plot <- renderPlotly({
+    
     p <- ggplot(in_data(), aes(end_date, unsure, color = party, group = initials)) +
         geom_point(alpha = .5) +
         scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
@@ -236,6 +234,7 @@ output$main_unsure_plot <- renderPlotly({
         ggplot2::theme(legend.position = "none") +
         labs(x = "Days in Office",
              y = "Unsure Rating")
+    
     ggplotly(p,originalData = T, tooltip = c("unsure", "initials"), layer = 1)
 })
 
